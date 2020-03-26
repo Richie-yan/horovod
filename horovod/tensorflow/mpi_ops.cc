@@ -15,16 +15,16 @@
 // limitations under the License.
 // =============================================================================
 
+#include <cuda_runtime.h> 
 #include <memory>
 #include <queue>
 #include <thread>
 #include <unordered_map>
-#include <cuda_runtime.h> 
+#include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/core/framework/allocator.h"
 #define EIGEN_USE_THREADS
 
 #if HAVE_GPU
@@ -276,14 +276,7 @@ TFOpContext::AllocateOutput(common::TensorShape shape,
   return ConvertStatus(status);
 }
 
-int GetDeviceID(OpKernelContext* context) {
-  int device = CPU_DEVICE_ID;
-  if (context->device() != nullptr &&
-      context->device()->tensorflow_gpu_device_info() != nullptr) {
-    device = context->device()->tensorflow_gpu_device_info()->gpu_id;
-  }
-  return device;
-}
+int GetDeviceID(OpKernelContext* context);
 
 template <class T>
 void Allocate(int64_t num_elements, int device_, ::tensorflow::Tensor& zero_tensor) {
@@ -310,8 +303,7 @@ TFOpContext::AllocateZeros(int64_t num_elements, common::DataType dtype,
   int device_ = GetDeviceID(context_);    
   if (device_ != CPU_DEVICE_ID){
     tf_attribute.set_on_host(false);      
-  }
-  else{
+  } else{
     tf_attribute.set_on_host(true);
   }
 
@@ -371,6 +363,15 @@ common::Framework TFOpContext::framework() const {
 }
 
 OpKernelContext* TFOpContext::GetKernelContext() const { return context_; }
+
+int GetDeviceID(OpKernelContext* context) {
+  int device = CPU_DEVICE_ID;
+  if (context->device() != nullptr &&
+      context->device()->tensorflow_gpu_device_info() != nullptr) {
+    device = context->device()->tensorflow_gpu_device_info()->gpu_id;
+  }
+  return device;
+}
 
 // On GPU this event will signal that data is ready, and tensors are
 // allocated.
